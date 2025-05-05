@@ -20,12 +20,12 @@ resource "docker_image" "ubuntu" {
   keep_locally = true
 }
 
-# Create the Kubernetes master node
+  # Create the Kubernetes master node
 resource "docker_container" "k8s_master" {
   name  = "k8s-master"
   image = docker_image.ubuntu.image_id
   
-  command = ["/bin/bash", "-c", "while true; do sleep 30; done"]
+  command = ["/bin/bash", "-c", "sleep 3600"]
   
   networks_advanced {
     name = docker_network.k8s_network.name
@@ -90,15 +90,16 @@ EOF
     EOT
   }
 }
+}
 
-# Create Kubernetes worker nodes
+  # Create Kubernetes worker nodes
 resource "docker_container" "k8s_worker" {
   count = 2
   
   name  = "k8s-worker-${count.index}"
   image = docker_image.ubuntu.image_id
   
-  command = ["/bin/bash", "-c", "while true; do sleep 30; done"]
+  command = ["/bin/bash", "-c", "sleep 3600"]
   
   networks_advanced {
     name = docker_network.k8s_network.name
@@ -156,4 +157,5 @@ EOF
       '
     EOT
   }
+}
 }
