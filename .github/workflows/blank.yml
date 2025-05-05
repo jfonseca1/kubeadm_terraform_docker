@@ -1,0 +1,86 @@
+name: Deploy Kubernetes with kubeadm in Docker
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+    # Allow manual triggering
+
+permissions:
+  contents: read
+
+jobs:
+  terraform:
+    name: 'Terraform'
+    runs-on: ubuntu-latest
+    
+    # Add 'id-token' with the intended permissions for workload identity federation
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+    # Checkout the repository to the GitHub Actions runner
+    - name: Checkout
+      uses: actions/checkout@v3
+
+    # Install the latest version of Terraform CLI
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v2
+      with:
+        terraform_version: "latest"
+
+    # Initialize a new or existing Terraform working directory by creating initial files, loading any remote state, downloading modules, etc.
+    - name: Terraform Init
+      run: terraform init
+
+    # Validate the Terraform files
+    - name: Terraform Validate
+      run: terraform validate -no-color
+
+    # Generates an execution plan for Terraform
+    - name: Terraform Plan
+      run: terraform plan -no-color
+      
+    # Apply the Terraform execution plan
+    - name: Terraform Apply
+      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+      run: terraform apply -auto-approve
+      
+    # Initialize Kubernetes Cluster
+    - name: Initialize Kubernetes Cluster
+      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+      run: |
+        chmod +x init_cluster.sh
+        ./init_cluster.sh
+        
+    # Verify the Kubernetes cluster is up and running
+    - name: Verify Kubernetes Cluster
+      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+      run: docker exec k8s-master kubectl get nodes
+      
+    # Run basic tests on the cluster
+    - name: Test Kubernetes Cluster
+      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+      run: |
+        # Deploy a test application
+        docker exec k8s-master kubectl create deployment nginx --image=nginx
+        docker exec k8s-master kubectl scale deployment nginx --replicas=3
+        
+        # Wait for pods to be running
+        echo "Waiting for pods to start..."
+        sleep 30
+        
+        # Check if pods are running
+        docker exec k8s-master kubectl get pods
+        
+        # Check if deployments are working
+        READY_REPLICAS=$(docker exec k8s-master kubectl get deployment nginx -o jsonpath='{.status.readyReplicas}')
+        if [ "$READY_REPLICAS" -eq "3" ]; then
+          echo "Deployment test successful!"
+        else
+          echo "Deployment test failed. Ready replicas: $READY_REPLICAS"
+          exit 1
+        fi
