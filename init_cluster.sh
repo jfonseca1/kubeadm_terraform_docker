@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e  # Exit immediately if any command fails
 
-# Function to install Kubernetes components
+# Function to install Kubernetes components with correct repository
 install_kubernetes() {
     local container=$1
     echo "Installing Kubernetes components in $container..."
@@ -10,19 +10,20 @@ install_kubernetes() {
         apt-get update && \
         apt-get install -y apt-transport-https ca-certificates curl gnupg && \
         
-        # Add Kubernetes repository
+        # Add correct Kubernetes repository (updated URL)
         mkdir -p /usr/share/keyrings && \
         curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.28/deb/Release.key | \
         gpg --dearmor -o /usr/share/keyrings/kubernetes-archive-keyring.gpg && \
         echo "deb [signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] \
         https://pkgs.k8s.io/core:/stable:/v1.28/deb/ /" > /etc/apt/sources.list.d/kubernetes.list && \
         
-        # Install Kubernetes components
+        # Install specific Kubernetes versions
         apt-get update && \
         apt-get install -y kubelet=1.28.15-1.1 kubeadm=1.28.15-1.1 kubectl=1.28.15-1.1 && \
         apt-mark hold kubelet kubeadm kubectl
     '
 }
+
 
 # Function to initialize Kubernetes master
 init_master() {
