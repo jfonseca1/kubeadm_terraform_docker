@@ -54,12 +54,19 @@ jobs:
       if: github.ref == 'refs/heads/main' && github.event_name == 'push'
       run: |
         chmod +x init_cluster.sh
+        # Add a delay to ensure containers are fully ready
+        echo "Waiting for containers to be fully initialized..."
+        sleep 60
         ./init_cluster.sh
         
     # Verify the Kubernetes cluster is up and running
     - name: Verify Kubernetes Cluster
       if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-      run: docker exec k8s-master kubectl get nodes
+      run: |
+        echo "Checking node status..."
+        docker exec k8s-master kubectl get nodes
+        echo "Checking kube-system pods..."
+        docker exec k8s-master kubectl get pods -n kube-system
       
     # Run basic tests on the cluster
     - name: Test Kubernetes Cluster
