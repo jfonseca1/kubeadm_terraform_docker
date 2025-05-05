@@ -52,36 +52,42 @@ resource "docker_container" "k8s_master" {
     external = 6443
   }
   
-  # Setup for kubeadm
-  provisioner "remote-exec" {
-    inline = [
-      # Update and install dependencies
-      "apt-get update",
-      "apt-get install -y apt-transport-https ca-certificates curl gnupg lsb-release systemd",
-      
-      # Install Docker
-      "curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg",
-      "echo \"deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable\" | tee /etc/apt/sources.list.d/docker.list > /dev/null",
-      "apt-get update",
-      "apt-get install -y docker-ce docker-ce-cli containerd.io",
-      
-      # Install kubeadm, kubelet, and kubectl
-      "curl -fsSL https://packages.cloud.google.com/apt/doc/apt-key.gpg | gpg --dearmor -o /usr/share/keyrings/kubernetes-archive-keyring.gpg",
-      "echo \"deb [signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main\" | tee /etc/apt/sources.list.d/kubernetes.list",
-      "apt-get update",
-      "apt-get install -y kubelet kubeadm kubectl",
-      "apt-mark hold kubelet kubeadm kubectl",
-      
-      # Configure containerd
-      "mkdir -p /etc/containerd",
-      "containerd config default | tee /etc/containerd/config.toml",
-      "sed -i 's/SystemdCgroup = false/SystemdCgroup = true/g' /etc/containerd/config.toml",
-      "systemctl restart containerd",
-      
-      # Configure sysctl settings for Kubernetes
-      "cat <<EOF | tee /etc/sysctl.d/k8s.conf\nnet.bridge.bridge-nf-call-ip6tables = 1\nnet.bridge.bridge-nf-call-iptables = 1\nnet.ipv4.ip_forward = 1\nEOF",
-      "sysctl --system"
-    ]
+  # We'll use local-exec instead of remote-exec to perform setup
+  provisioner "local-exec" {
+    command = <<-EOT
+      docker exec ${self.name} bash -c '
+        # Update and install dependencies
+        apt-get update
+        apt-get install -y apt-transport-https ca-certificates curl gnupg lsb-release systemd
+
+        # Install Docker
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+        echo "deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+        apt-get update
+        apt-get install -y docker-ce docker-ce-cli containerd.io
+
+        # Install kubeadm, kubelet, and kubectl
+        curl -fsSL https://packages.cloud.google.com/apt/doc/apt-key.gpg | gpg --dearmor -o /usr/share/keyrings/kubernetes-archive-keyring.gpg
+        echo "deb [signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main" | tee /etc/apt/sources.list.d/kubernetes.list
+        apt-get update
+        apt-get install -y kubelet kubeadm kubectl
+        apt-mark hold kubelet kubeadm kubectl
+
+        # Configure containerd
+        mkdir -p /etc/containerd
+        containerd config default | tee /etc/containerd/config.toml
+        sed -i "s/SystemdCgroup = false/SystemdCgroup = true/g" /etc/containerd/config.toml
+        systemctl restart containerd
+
+        # Configure sysctl settings for Kubernetes
+        cat <<EOF | tee /etc/sysctl.d/k8s.conf
+net.bridge.bridge-nf-call-ip6tables = 1
+net.bridge.bridge-nf-call-iptables = 1
+net.ipv4.ip_forward = 1
+EOF
+        sysctl --system
+      '
+    EOT
   }
 }
 
@@ -113,35 +119,41 @@ resource "docker_container" "k8s_worker" {
     }
   }
   
-  # Setup for kubeadm worker nodes
-  provisioner "remote-exec" {
-    inline = [
-      # Update and install dependencies
-      "apt-get update",
-      "apt-get install -y apt-transport-https ca-certificates curl gnupg lsb-release systemd",
-      
-      # Install Docker
-      "curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg",
-      "echo \"deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable\" | tee /etc/apt/sources.list.d/docker.list > /dev/null",
-      "apt-get update",
-      "apt-get install -y docker-ce docker-ce-cli containerd.io",
-      
-      # Install kubeadm, kubelet, and kubectl
-      "curl -fsSL https://packages.cloud.google.com/apt/doc/apt-key.gpg | gpg --dearmor -o /usr/share/keyrings/kubernetes-archive-keyring.gpg",
-      "echo \"deb [signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main\" | tee /etc/apt/sources.list.d/kubernetes.list",
-      "apt-get update",
-      "apt-get install -y kubelet kubeadm kubectl",
-      "apt-mark hold kubelet kubeadm kubectl",
-      
-      # Configure containerd
-      "mkdir -p /etc/containerd",
-      "containerd config default | tee /etc/containerd/config.toml",
-      "sed -i 's/SystemdCgroup = false/SystemdCgroup = true/g' /etc/containerd/config.toml",
-      "systemctl restart containerd",
-      
-      # Configure sysctl settings for Kubernetes
-      "cat <<EOF | tee /etc/sysctl.d/k8s.conf\nnet.bridge.bridge-nf-call-ip6tables = 1\nnet.bridge.bridge-nf-call-iptables = 1\nnet.ipv4.ip_forward = 1\nEOF",
-      "sysctl --system"
-    ]
+  # We'll use local-exec instead of remote-exec to perform setup
+  provisioner "local-exec" {
+    command = <<-EOT
+      docker exec ${self.name} bash -c '
+        # Update and install dependencies
+        apt-get update
+        apt-get install -y apt-transport-https ca-certificates curl gnupg lsb-release systemd
+
+        # Install Docker
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+        echo "deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+        apt-get update
+        apt-get install -y docker-ce docker-ce-cli containerd.io
+
+        # Install kubeadm, kubelet, and kubectl
+        curl -fsSL https://packages.cloud.google.com/apt/doc/apt-key.gpg | gpg --dearmor -o /usr/share/keyrings/kubernetes-archive-keyring.gpg
+        echo "deb [signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main" | tee /etc/apt/sources.list.d/kubernetes.list
+        apt-get update
+        apt-get install -y kubelet kubeadm kubectl
+        apt-mark hold kubelet kubeadm kubectl
+
+        # Configure containerd
+        mkdir -p /etc/containerd
+        containerd config default | tee /etc/containerd/config.toml
+        sed -i "s/SystemdCgroup = false/SystemdCgroup = true/g" /etc/containerd/config.toml
+        systemctl restart containerd
+
+        # Configure sysctl settings for Kubernetes
+        cat <<EOF | tee /etc/sysctl.d/k8s.conf
+net.bridge.bridge-nf-call-ip6tables = 1
+net.bridge.bridge-nf-call-iptables = 1
+net.ipv4.ip_forward = 1
+EOF
+        sysctl --system
+      '
+    EOT
   }
 }
