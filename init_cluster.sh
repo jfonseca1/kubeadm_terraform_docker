@@ -15,7 +15,8 @@ if ! docker exec k8s-master which kubeadm > /dev/null; then
     echo "deb [signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.28/deb/ /" | tee /etc/apt/sources.list.d/kubernetes.list && \
     apt-get update && \
     apt-get install -y kubelet=1.28.15-1.1 kubeadm=1.28.15-1.1 kubectl=1.28.15-1.1 && \
-    apt-mark hold kubelet kubeadm kubectl'
+    apt-mark hold kubelet kubeadm kubectl
+'
 fi
 
 # Initialize the Kubernetes master node
@@ -68,7 +69,7 @@ for i in {0..1}; do
   # Verify that worker has kubeadm installed
   if ! docker exec k8s-worker-$i which kubeadm > /dev/null; then
     echo "Installing kubeadm on worker $i..."
-    docker exec k8s-worker-$i bash -c 'apt-get update && apt-get install -y apt-transport-https ca-certificates curl && \
+    docker exec k8s-worker-$i bash -c '
       apt-get update && \
       apt-get install -y apt-transport-https ca-certificates curl gnupg && \
       mkdir -p /usr/share/keyrings && \
@@ -76,7 +77,8 @@ for i in {0..1}; do
       echo "deb [signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.28/deb/ /" | tee /etc/apt/sources.list.d/kubernetes.list && \
       apt-get update && \
       apt-get install -y kubelet=1.28.15-1.1 kubeadm=1.28.15-1.1 kubectl=1.28.15-1.1 && \
-      apt-mark hold kubelet kubeadm kubectl'
+      apt-mark hold kubelet kubeadm kubectl
+    '
   fi
   docker exec k8s-worker-$i bash -c "$JOIN_COMMAND"
 done
